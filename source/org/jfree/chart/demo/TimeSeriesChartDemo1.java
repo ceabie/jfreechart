@@ -104,7 +104,7 @@ public class TimeSeriesChartDemo1 extends ApplicationFrame {
             "Date",             // x-axis label
             "Price Per Unit",   // y-axis label
             dataset,            // data
-            true,               // create legend?
+            false,               // create legend?
             true,               // generate tooltips?
             false               // generate URLs?
         );

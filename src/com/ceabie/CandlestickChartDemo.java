@@ -5,20 +5,26 @@ import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.StandardChartTheme;
 import org.jfree.chart.axis.DateAxis;
+import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.chart.plot.XYPlot;
 import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
+import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.io.CSV;
 import org.jfree.data.time.Day;
+import org.jfree.data.time.TimeSeries;
+import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeries;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 import org.jfree.data.xy.OHLCDataset;
+import org.jfree.data.xy.XYDataset;
 import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 import org.jfree.ui.RefineryUtilities;
 
 import javax.swing.*;
+
 import java.awt.*;
 import java.io.FileReader;
 import java.text.SimpleDateFormat;
@@ -35,7 +41,47 @@ public class CandlestickChartDemo extends ApplicationFrame {
                 true));
     }
 
-    private static JFreeChart createChart(OHLCDataset dataset) {
+    private static JFreeChart createChart() {
+        OHLCSeriesCollection dataset = new OHLCSeriesCollection();
+        TimeSeries highSeries = new TimeSeries("high");
+        TimeSeries lowSeries = new TimeSeries("low");
+
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
+
+        CSV csv = new CSV();
+        try {
+            FileReader fileReader = new FileReader("000001.csv");
+
+            CategoryDataset categoryDataset = csv.readCategoryDataset(fileReader);
+
+            int rowCount = categoryDataset.getRowCount();
+            for (int i = 0; i < rowCount; i++) {
+                Comparable rowKey = categoryDataset.getRowKey(i);
+                OHLCSeries s1 = new OHLCSeries(rowKey);
+
+                Day period = new Day(simpleDateFormat.parse(rowKey.toString()));
+                Number high = categoryDataset.getValue(i, 1);
+                Number open = categoryDataset.getValue(i, 3);
+                Number close = categoryDataset.getValue(i, 0);
+                Number low = categoryDataset.getValue(i, 2);
+                s1.add(period,
+                        open.doubleValue(),
+                        high.doubleValue(),
+                        low.doubleValue(),
+                        close.doubleValue());
+
+                highSeries.add(period, high);
+                lowSeries.add(period, low);
+                dataset.addSeries(s1);
+            }
+            fileReader.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        TimeSeriesCollection TdcDataset = new TimeSeriesCollection();
+        TdcDataset.addSeries(highSeries);
+        TdcDataset.addSeries(lowSeries);
 
         JFreeChart chart = ChartFactory.createCandlestickChart(
                 "Legal & General Unit Trust Prices",  // title
@@ -52,6 +98,7 @@ public class CandlestickChartDemo extends ApplicationFrame {
         plot.setDomainGridlinePaint(Color.white);
         plot.setRangeGridlinePaint(Color.white);
         plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
+
         plot.setDomainCrosshairVisible(false);
         plot.setRangeCrosshairVisible(true);
 
@@ -66,57 +113,32 @@ public class CandlestickChartDemo extends ApplicationFrame {
             renderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
         }
 
-        DateAxis axis = (DateAxis) plot.getDomainAxis();
-        axis.setDateFormatOverride(new SimpleDateFormat("MM-yyyy"));
-
-
         //Add the otherDataSet to the plot and map it to the same axis at the original plot
-//        int index = 1;
-//        plot.setDataset(index, otherDataSet);
-//        plot.mapDatasetToRangeAxis(index, 0);
-//
-//        XYItemRenderer renderer2 = new XYLineAndShapeRenderer();
-//        plot.setRenderer(1, renderer2);
-//        plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+        int index = 1;
+        plot.setDataset(index, TdcDataset);
+        plot.mapDatasetToRangeAxis(index, 0);
+
+        XYLineAndShapeRenderer renderer2 = new XYLineAndShapeRenderer(true, false);
+        renderer2.setBaseShapesVisible(false);
+        renderer2.setBaseShapesFilled(false);
+        renderer2.setDrawSeriesLineAsPath(true);
+        renderer2.setSeriesPaint(0, Color.RED);
+        renderer2.setSeriesPaint(1, Color.GREEN);
+        plot.setRenderer(1, renderer2);
+        plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+
+
+        DateAxis axis = (DateAxis) plot.getDomainAxis();
+        axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
 
         return chart;
 
     }
 
-
-    private static OHLCDataset createDataset() {
-        OHLCSeriesCollection dataset = new OHLCSeriesCollection();
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
-
-        CSV csv = new CSV();
-        try {
-            FileReader fileReader = new FileReader("000001.csv");
-
-            CategoryDataset categoryDataset = csv.readCategoryDataset(fileReader);
-
-            int rowCount = categoryDataset.getRowCount();
-            for (int i = 0; i < rowCount; i++) {
-                Comparable rowKey = categoryDataset.getRowKey(i);
-                OHLCSeries s1 = new OHLCSeries(rowKey);
-
-                s1.add(new Day(simpleDateFormat.parse(rowKey.toString())),
-                        categoryDataset.getValue(i, 3).doubleValue(),
-                        categoryDataset.getValue(i, 1).doubleValue(),
-                        categoryDataset.getValue(i, 2).doubleValue(),
-                        categoryDataset.getValue(i, 0).doubleValue());
-
-                dataset.addSeries(s1);
-            }
-            fileReader.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return dataset;
-    }
-
     public static JPanel createDemoPanel() {
-        JFreeChart chart = createChart(createDataset());
+        JFreeChart chart = createChart();
+//        ChartScrollBar chart1 = new ChartScrollBar(ChartScrollBar.HORIZONTAL, chart);
+
         ChartPanel panel = new ChartPanel(chart);
 //        panel.setFillZoomRectangle(true);
         panel.setMouseWheelEnabled(true);
@@ -132,6 +154,9 @@ public class CandlestickChartDemo extends ApplicationFrame {
         chartPanel.setPreferredSize(new java.awt.Dimension(800, 500));
 //        chartPanel.setDomainZoomable(false);
         chartPanel.setRangeZoomable(false);
+
+//        JScrollPane jScrollPane = new JScrollPane();
+//        jScrollPane.add(chartPanel);
         setContentPane(chartPanel);
     }
 

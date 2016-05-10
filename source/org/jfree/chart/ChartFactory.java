@@ -2239,6 +2239,9 @@ public abstract class ChartFactory {
             boolean legend) {
 
         ValueAxis timeAxis = new DateAxis(timeAxisLabel);
+        timeAxis.setLowerMargin(0.02);  // reduce the default margins
+        timeAxis.setUpperMargin(0.02);
+
         NumberAxis valueAxis = new NumberAxis(valueAxisLabel);
         XYPlot plot = new XYPlot(dataset, timeAxis, valueAxis, null);
         plot.setRenderer(new CandlestickRenderer());
