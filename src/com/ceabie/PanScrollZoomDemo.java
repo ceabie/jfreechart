@@ -1,7 +1,6 @@
 package com.ceabie;
 
 import com.sun.java.swing.plaf.windows.WindowsLookAndFeel;
-
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.ChartRenderingInfo;
 import org.jfree.chart.JFreeChart;
@@ -19,40 +18,22 @@ import org.jfree.chart.title.TextTitle;
 import org.jfree.data.Range;
 import org.jfree.data.xy.XYSeries;
 import org.jfree.data.xy.XYSeriesCollection;
+import org.jfree.ui.ApplicationFrame;
+import org.jfree.util.ShapeUtilities;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Cursor;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-import java.awt.geom.Point2D;
-import java.awt.geom.Rectangle2D;
-
-import javax.swing.AbstractButton;
-import javax.swing.BoundedRangeModel;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultBoundedRangeModel;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JScrollBar;
-import javax.swing.JToggleButton;
-import javax.swing.JToolBar;
-import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
+import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.geom.Point2D;
+import java.awt.geom.Rectangle2D;
 
 /**
  * Created by Administrator on 2016/5/10.
  */
-public class PanScrollZoomDemo extends JFrame
-        implements ActionListener,
-        ChangeListener,
-        ChartChangeListener,
-        MouseListener/*,
-        MouseMotionListener */{
+public class PanScrollZoomDemo extends ApplicationFrame implements ActionListener, ChangeListener,
+        ChartChangeListener, MouseListener, MouseMotionListener {
 
     /** The panel that displays the chart. */
     private ChartPanel chartPanel;
@@ -126,11 +107,10 @@ public class PanScrollZoomDemo extends JFrame
         this.scrollBar.setModel(new DefaultBoundedRangeModel());
         recalcScrollBar(chart.getPlot());
 
-        this.chartPanel = new ChartPanel(chart) {
-            public void autoRangeBoth() {
-                System.out.println("Use 'Fit all' button");
-            }
-        };
+        this.chartPanel = new ChartPanel(chart);
+
+        chartPanel.setMouseWheelEnabled(true);
+        chartPanel.setRangeZoomable(false);
 
         chart.addChangeListener(this);
 
@@ -139,7 +119,7 @@ public class PanScrollZoomDemo extends JFrame
 
         // MouseListeners for pan function
         this.chartPanel.addMouseListener(this);
-//        this.chartPanel.addMouseMotionListener(this);
+        this.chartPanel.addMouseMotionListener(this);
 
         // remove popup menu to allow panning
         // with right mouse pressed
@@ -324,10 +304,12 @@ public class PanScrollZoomDemo extends JFrame
      */
     private void setPanMode(final boolean val) {
 
-//        this.chartPanel.setHorizontalZoom(!val);
-        // chartPanel.setHorizontalAxisTrace(! val);
-        //      this.chartPanel.setVerticalZoom(!val);
-        // chartPanel.setVerticalAxisTrace(! val);
+//        this.chartPanel.setMouseZoomable(!val);
+//        chartPanel.setDomainZoomable(!val);
+        chartPanel.setFillZoomRectangle(!val);
+
+        chartPanel.setHorizontalAxisTrace(! val);
+         chartPanel.setVerticalAxisTrace(! val);
 
         if (val) {
             this.chartPanel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -519,12 +501,12 @@ public class PanScrollZoomDemo extends JFrame
             if (this.panButton.isSelected()
                     || this.panButton.isEnabled()
                     && SwingUtilities.isRightMouseButton(event)) {
-//                final Rectangle2D dataArea = this.chartPanel.getScaledDataArea();
-                //              final Point2D point = event.getPoint();
-                //            if (dataArea.contains(point)) {
-                //              setPanMode(true);
-                //            this.panStartPoint = point;
-                //      }
+                final Rectangle2D dataArea = this.chartPanel.getScreenDataArea();
+                final Point2D point = event.getPoint();
+                if (dataArea.contains(point)) {
+                    setPanMode(true);
+                    this.panStartPoint = point;
+                }
             }
         }
         catch (Exception e) {
@@ -553,18 +535,19 @@ public class PanScrollZoomDemo extends JFrame
      * Handles a mouse dragged event to perform panning.
      *
      * @param event  the event.
-     *//*
+     */
+    @Override
     public void mouseDragged(final MouseEvent event) {
         try {
             if (this.panStartPoint != null) {
-//                final Rectangle2D scaledDataArea = this.chartPanel.getScaledDataArea();
+                final Rectangle2D scaledDataArea = this.chartPanel.getScreenDataArea();
 
-  //              this.panStartPoint = RefineryUtilities.getPointInRectangle(
-    //                this.panStartPoint.getX(),
-      //              this.panStartPoint.getY(),
-        //            scaledDataArea
+                this.panStartPoint = ShapeUtilities.getPointInRectangle(
+                    this.panStartPoint.getX(),
+                    this.panStartPoint.getY(),
+                    scaledDataArea
                 );
-                final Point2D panEndPoint = RefineryUtilities.getPointInRectangle(
+                final Point2D panEndPoint = ShapeUtilities.getPointInRectangle(
                     event.getX(), event.getY(), scaledDataArea
                 );
 
@@ -676,7 +659,7 @@ public class PanScrollZoomDemo extends JFrame
             e.printStackTrace();
         }
     }
-*/
+
     /**
      * Handles a mouse clicked event, in this case by ignoring it.
      *

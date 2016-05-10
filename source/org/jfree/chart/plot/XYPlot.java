@@ -3710,6 +3710,10 @@ public class XYPlot extends Plot implements ValueAxisPlot, Pannable, Zoomable,
                 }
             }
 
+            if (!renderer.getBaseSeriesVisible()) {
+                return foundData;
+            }
+
             XYItemRendererState state = renderer.initialise(g2, dataArea, this,
                     dataset, info);
             int passCount = renderer.getPassCount();

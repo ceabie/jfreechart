@@ -17,22 +17,24 @@ import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeries;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
-import org.jfree.data.xy.OHLCDataset;
-import org.jfree.data.xy.XYDataset;
 import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 import org.jfree.ui.RefineryUtilities;
 
 import javax.swing.*;
-
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowEvent;
 import java.io.FileReader;
 import java.text.SimpleDateFormat;
 
 /**
  * Created by Administrator on 2016/5/9.
  */
-public class CandlestickChartDemo extends ApplicationFrame {
+public class CandlestickChartDemo extends ApplicationFrame implements ActionListener {
+
+    private static final String ACTION_CMD_SWITCH_CAND = "switch-cand";
 
     static {
         // set a theme using the new shadow generator feature available in
@@ -41,7 +43,11 @@ public class CandlestickChartDemo extends ApplicationFrame {
                 true));
     }
 
-    private static JFreeChart createChart() {
+    private JScrollBar mJScrollBar;
+    private JButton panButton;
+    private CandlestickRenderer mCandlestickRenderer;
+
+    private JFreeChart createChart() {
         OHLCSeriesCollection dataset = new OHLCSeriesCollection();
         TimeSeries highSeries = new TimeSeries("high");
         TimeSeries lowSeries = new TimeSeries("low");
@@ -107,10 +113,10 @@ public class CandlestickChartDemo extends ApplicationFrame {
 //        plot.setRangeCrosshairLockedOnData(false);
         plot.setDomainCrosshairLockedOnData(false);
 
-        XYItemRenderer r = plot.getRenderer();
+        XYItemRenderer r = plot.getRenderer(0);
         if (r instanceof CandlestickRenderer) {
-            CandlestickRenderer renderer = (CandlestickRenderer) r;
-            renderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
+            mCandlestickRenderer = (CandlestickRenderer) r;
+            mCandlestickRenderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
         }
 
         //Add the otherDataSet to the plot and map it to the same axis at the original plot
@@ -120,7 +126,7 @@ public class CandlestickChartDemo extends ApplicationFrame {
 
         XYLineAndShapeRenderer renderer2 = new XYLineAndShapeRenderer(true, false);
         renderer2.setBaseShapesVisible(false);
-        renderer2.setBaseShapesFilled(false);
+        renderer2.setBaseShapesFilled(true);
         renderer2.setDrawSeriesLineAsPath(true);
         renderer2.setSeriesPaint(0, Color.RED);
         renderer2.setSeriesPaint(1, Color.GREEN);
@@ -135,38 +141,94 @@ public class CandlestickChartDemo extends ApplicationFrame {
 
     }
 
-    public static JPanel createDemoPanel() {
+    public JPanel createDemoPanel() {
         JFreeChart chart = createChart();
 //        ChartScrollBar chart1 = new ChartScrollBar(ChartScrollBar.HORIZONTAL, chart);
 
         ChartPanel panel = new ChartPanel(chart);
-//        panel.setFillZoomRectangle(true);
         panel.setMouseWheelEnabled(true);
+//        panel.setFillZoomRectangle(true);
 //        panel.setVerticalAxisTrace(true);
 //        panel.setHorizontalAxisTrace(true);
         return panel;
     }
 
+    private JToolBar createToolbar() {
+        final JToolBar toolbar = new JToolBar();
+
+        // ACTION_CMD_SWITCH_CAND
+        panButton = new JButton();
+        prepareButton(panButton, ACTION_CMD_SWITCH_CAND, " switch Cand ", "switch Cand");
+//        groupedButtons.add(panButton);
+        toolbar.add(panButton);
+
+        toolbar.addSeparator();
+
+        this.mJScrollBar = new JScrollBar(JScrollBar.HORIZONTAL);
+        //   int ht = (int) zoomButton.getPreferredSize().getHeight();
+        //   mJScrollBar.setPreferredSize(new Dimension(0, ht));
+        this.mJScrollBar.setModel(new DefaultBoundedRangeModel());
+
+        toolbar.add(this.mJScrollBar);
+
+        this.mJScrollBar.setEnabled(false);
+
+        toolbar.setFloatable(false);
+        return toolbar;
+    }
+
+    private ChartPanel createChartPanel() {
+        ChartPanel chartPanel = (ChartPanel) createDemoPanel();
+        chartPanel.setPreferredSize(new Dimension(800, 600));
+//        chartPanel.setRangeZoomable(false);
+        chartPanel.setPopupMenu(null);
+
+        return chartPanel;
+    }
+
+    @Override
+    public void windowClosed(WindowEvent event) {
+        super.windowClosed(event);
+        System.exit(0);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent actionEvent) {
+        try {
+            final String acmd = actionEvent.getActionCommand();
+            if (acmd.equals(ACTION_CMD_SWITCH_CAND)) {
+                mCandlestickRenderer.setBaseSeriesVisible(!mCandlestickRenderer.getBaseSeriesVisible());
+            }
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void prepareButton(final AbstractButton button,
+                               final String actionKey,
+                               final String buttonLabelText,
+                               final String toolTipText) {
+
+        button.setActionCommand(actionKey);
+        button.setText(buttonLabelText);
+        button.setToolTipText(toolTipText);
+        button.addActionListener(this);
+    }
 
     public CandlestickChartDemo(String title) {
         super(title);
-        ChartPanel chartPanel = (ChartPanel) createDemoPanel();
-        chartPanel.setPreferredSize(new java.awt.Dimension(800, 500));
-//        chartPanel.setDomainZoomable(false);
-        chartPanel.setRangeZoomable(false);
-
-//        JScrollPane jScrollPane = new JScrollPane();
-//        jScrollPane.add(chartPanel);
-        setContentPane(chartPanel);
+        Container contentPane = getContentPane();
+        contentPane.setLayout(new BorderLayout());
+        contentPane.add(createToolbar(), BorderLayout.SOUTH);
+        contentPane.add(createChartPanel());
     }
 
     public static void main(String[] args) {
-
-        CandlestickChartDemo demo = new CandlestickChartDemo(
-                "Time Series Chart Demo 1");
+        CandlestickChartDemo demo = new CandlestickChartDemo("Candlestick");
         demo.pack();
         RefineryUtilities.centerFrameOnScreen(demo);
         demo.setVisible(true);
-
     }
+
 }
