@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat;
 public class CandlestickChartDemo extends ApplicationFrame implements ActionListener {
 
     private static final String ACTION_CMD_SWITCH_CAND = "switch-cand";
+    private static final String ACTION_CMD_SWITCH_LOW = "switch-low";
 
     static {
         // set a theme using the new shadow generator feature available in
@@ -46,10 +47,11 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
     }
 
     private JScrollBar mJScrollBar;
-    private JButton panButton;
+    private JButton mPanButton;
     private CandlestickRenderer mCandlestickRenderer;
     private XYLineAndShapeRenderer mLineRenderer;
     private JFreeChart mChart;
+    private JButton mLowButton;
 
 
     private DataSet loadData() {
@@ -105,14 +107,15 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
     private void updateData(DataSet dataSet) {
         XYPlot plot = (XYPlot) mChart.getPlot();
 
-        plot.setDataset(0, dataSet.dataset);
-        plot.mapDatasetToRangeAxis(0, 0);
-
-        XYItemRenderer r = plot.getRenderer(0);
+        int candlestickIndex = 0;
+        XYItemRenderer r = plot.getRenderer(candlestickIndex);
         if (r instanceof CandlestickRenderer) {
             mCandlestickRenderer = (CandlestickRenderer) r;
             mCandlestickRenderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
         }
+
+        plot.setDataset(candlestickIndex, dataSet.dataset);
+//        plot.mapDatasetToRangeAxis(candlestickIndex, 0);
 
         int index = 1;
 
@@ -122,11 +125,13 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         mLineRenderer.setDrawSeriesLineAsPath(true);
         mLineRenderer.setSeriesPaint(0, Color.RED);
         mLineRenderer.setSeriesPaint(1, Color.GREEN);
+        mLineRenderer.setBaseShapesVisible(false);
+
         plot.setRenderer(index, mLineRenderer);
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 
         plot.setDataset(index, dataSet.TdcDataset);
-        plot.mapDatasetToRangeAxis(index, 0);
+//        plot.mapDatasetToRangeAxis(index, 0);
 
         DateAxis axis = (DateAxis) plot.getDomainAxis();
         axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
@@ -168,7 +173,6 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
 
     public JPanel createDemoPanel() {
         JFreeChart chart = createChart();
-//        ChartScrollBar chart1 = new ChartScrollBar(ChartScrollBar.HORIZONTAL, chart);
 
         ChartPanel panel = new ChartPanel(chart);
         panel.setMouseWheelEnabled(true);
@@ -178,52 +182,55 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         return panel;
     }
 
+    /////////////////////////////// Tool bar ////////////////////////////////////
+
     private JToolBar createToolbar() {
         final JToolBar toolbar = new JToolBar();
 
-        panButton = new JButton();
-        prepareButton(panButton, ACTION_CMD_SWITCH_CAND, " switch Cand ", "switch Cand");
-//        groupedButtons.add(panButton);
-        toolbar.add(panButton);
+        mPanButton = new JButton();
+        prepareButton(mPanButton, ACTION_CMD_SWITCH_CAND, " switch Cand ", "switch Cand");
+//        groupedButtons.add(mPanButton);
+        toolbar.add(mPanButton);
 
         toolbar.addSeparator();
 
-        this.mJScrollBar = new JScrollBar(JScrollBar.HORIZONTAL);
+        mLowButton = new JButton();
+        prepareButton(mLowButton, ACTION_CMD_SWITCH_LOW, " switch Low ", "switch Low");
+        toolbar.add(mLowButton);
+
+        toolbar.addSeparator();
+
+        mJScrollBar = new JScrollBar(JScrollBar.HORIZONTAL);
         //   int ht = (int) zoomButton.getPreferredSize().getHeight();
         //   mJScrollBar.setPreferredSize(new Dimension(0, ht));
-        this.mJScrollBar.setModel(new DefaultBoundedRangeModel());
+        mJScrollBar.setModel(new DefaultBoundedRangeModel());
 
-        toolbar.add(this.mJScrollBar);
+        toolbar.add(mJScrollBar);
 
-        this.mJScrollBar.setEnabled(false);
+        mJScrollBar.setEnabled(false);
 
         toolbar.setFloatable(false);
         return toolbar;
-    }
-
-    private ChartPanel createChartPanel() {
-        ChartPanel chartPanel = (ChartPanel) createDemoPanel();
-        chartPanel.setPreferredSize(new Dimension(800, 600));
-//        chartPanel.setRangeZoomable(false);
-        chartPanel.setPopupMenu(null);
-
-        return chartPanel;
-    }
-
-    @Override
-    public void windowClosed(WindowEvent event) {
-        super.windowClosed(event);
-        System.exit(0);
     }
 
     @Override
     public void actionPerformed(ActionEvent actionEvent) {
         try {
             final String acmd = actionEvent.getActionCommand();
-            if (acmd.equals(ACTION_CMD_SWITCH_CAND)) {
-                boolean seriesVisible = mCandlestickRenderer.getBaseSeriesVisible();
-                mCandlestickRenderer.setBaseSeriesVisible(!seriesVisible);
-                mLineRenderer.setBaseShapesVisible(seriesVisible);
+            switch (acmd) {
+                case ACTION_CMD_SWITCH_CAND:
+                    boolean seriesVisible = mCandlestickRenderer.getBaseSeriesVisible();
+                    mCandlestickRenderer.setBaseSeriesVisible(!seriesVisible);
+//                mLineRenderer.setBaseShapesVisible(seriesVisible);
+                    break;
+
+                case ACTION_CMD_SWITCH_LOW:
+                    Boolean visible = mLineRenderer.getSeriesLinesVisible(1);
+                    if (visible == null) {
+                        visible = true;
+                    }
+                    mLineRenderer.setSeriesLinesVisible(1, !visible);
+                    break;
             }
         }
         catch (Exception e) {
@@ -240,6 +247,22 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         button.setText(buttonLabelText);
         button.setToolTipText(toolTipText);
         button.addActionListener(this);
+    }
+
+    /////////////////////////////// Main ////////////////////////////////////
+    @Override
+    public void windowClosed(WindowEvent event) {
+        super.windowClosed(event);
+        System.exit(0);
+    }
+
+    private ChartPanel createChartPanel() {
+        ChartPanel chartPanel = (ChartPanel) createDemoPanel();
+        chartPanel.setPreferredSize(new Dimension(800, 600));
+//        chartPanel.setRangeZoomable(false);
+        chartPanel.setPopupMenu(null);
+
+        return chartPanel;
     }
 
     public CandlestickChartDemo(String title) {
