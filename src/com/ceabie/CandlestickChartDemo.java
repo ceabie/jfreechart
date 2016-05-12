@@ -1,5 +1,6 @@
 package com.ceabie;
 
+import bolts.Task;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -13,6 +14,7 @@ import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.io.CSV;
 import org.jfree.data.time.Day;
+import org.jfree.data.time.TimePeriodAnchor;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeries;
@@ -46,14 +48,18 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
     private JScrollBar mJScrollBar;
     private JButton panButton;
     private CandlestickRenderer mCandlestickRenderer;
+    private XYLineAndShapeRenderer mLineRenderer;
+    private JFreeChart mChart;
 
-    private JFreeChart createChart() {
+
+    private DataSet loadData() {
         OHLCSeriesCollection dataset = new OHLCSeriesCollection();
+        dataset.setXPosition(TimePeriodAnchor.START);
+
         TimeSeries highSeries = new TimeSeries("high");
         TimeSeries lowSeries = new TimeSeries("low");
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
-
         CSV csv = new CSV();
         try {
             FileReader fileReader = new FileReader("000001.csv");
@@ -89,29 +95,18 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         TdcDataset.addSeries(highSeries);
         TdcDataset.addSeries(lowSeries);
 
-        JFreeChart chart = ChartFactory.createCandlestickChart(
-                "Legal & General Unit Trust Prices",  // title
-                "Date",             // x-axis label
-                "Price Per Unit",   // y-axis label
-                dataset,           // data
-                false
-        );
+        DataSet dataSet = new DataSet();
+        dataSet.dataset = dataset;
+        dataSet.TdcDataset = TdcDataset;
 
-        chart.setBackgroundPaint(Color.white);
+        return dataSet;
+    }
 
-        XYPlot plot = (XYPlot) chart.getPlot();
-        plot.setBackgroundPaint(Color.lightGray);
-        plot.setDomainGridlinePaint(Color.white);
-        plot.setRangeGridlinePaint(Color.white);
-        plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
+    private void updateData(DataSet dataSet) {
+        XYPlot plot = (XYPlot) mChart.getPlot();
 
-        plot.setDomainCrosshairVisible(false);
-        plot.setRangeCrosshairVisible(true);
-
-        plot.setDomainPannable(true);
-
-//        plot.setRangeCrosshairLockedOnData(false);
-        plot.setDomainCrosshairLockedOnData(false);
+        plot.setDataset(0, dataSet.dataset);
+        plot.mapDatasetToRangeAxis(0, 0);
 
         XYItemRenderer r = plot.getRenderer(0);
         if (r instanceof CandlestickRenderer) {
@@ -119,26 +114,56 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
             mCandlestickRenderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
         }
 
-        //Add the otherDataSet to the plot and map it to the same axis at the original plot
         int index = 1;
-        plot.setDataset(index, TdcDataset);
-        plot.mapDatasetToRangeAxis(index, 0);
 
-        XYLineAndShapeRenderer renderer2 = new XYLineAndShapeRenderer(true, false);
-        renderer2.setBaseShapesVisible(false);
-        renderer2.setBaseShapesFilled(true);
-        renderer2.setDrawSeriesLineAsPath(true);
-        renderer2.setSeriesPaint(0, Color.RED);
-        renderer2.setSeriesPaint(1, Color.GREEN);
-        plot.setRenderer(1, renderer2);
+        mLineRenderer = new XYLineAndShapeRenderer(true, false);
+        mLineRenderer.setBaseShapesVisible(false);
+        mLineRenderer.setBaseShapesFilled(true);
+        mLineRenderer.setDrawSeriesLineAsPath(true);
+        mLineRenderer.setSeriesPaint(0, Color.RED);
+        mLineRenderer.setSeriesPaint(1, Color.GREEN);
+        plot.setRenderer(index, mLineRenderer);
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
 
+        plot.setDataset(index, dataSet.TdcDataset);
+        plot.mapDatasetToRangeAxis(index, 0);
 
         DateAxis axis = (DateAxis) plot.getDomainAxis();
         axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
+    }
 
-        return chart;
+    private JFreeChart createChart() {
+        mChart = ChartFactory.createCandlestickChart(
+                "Legal & General Unit Trust Prices",  // title
+                "Date",             // x-axis label
+                "Price Per Unit",   // y-axis label
+                null,           // data
+                false
+        );
 
+        mChart.setBackgroundPaint(Color.white);
+
+        XYPlot plot = (XYPlot) mChart.getPlot();
+        plot.setBackgroundPaint(Color.lightGray);
+        plot.setDomainGridlinePaint(Color.white);
+        plot.setRangeGridlinePaint(Color.white);
+        plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
+
+        plot.setDomainCrosshairVisible(true);
+        plot.setRangeCrosshairVisible(true);
+
+        plot.setDomainPannable(true);
+        plot.setRangePannable(true);
+
+//        plot.setRangeCrosshairLockedOnData(false);
+//        plot.setDomainCrosshairLockedOnData(false);
+
+        Task.callInBackground(() -> {
+            DataSet dataSet = loadData();
+            updateData(dataSet);
+            return null;
+        });
+        return mChart;
     }
 
     public JPanel createDemoPanel() {
@@ -156,7 +181,6 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
     private JToolBar createToolbar() {
         final JToolBar toolbar = new JToolBar();
 
-        // ACTION_CMD_SWITCH_CAND
         panButton = new JButton();
         prepareButton(panButton, ACTION_CMD_SWITCH_CAND, " switch Cand ", "switch Cand");
 //        groupedButtons.add(panButton);
@@ -197,7 +221,9 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         try {
             final String acmd = actionEvent.getActionCommand();
             if (acmd.equals(ACTION_CMD_SWITCH_CAND)) {
-                mCandlestickRenderer.setBaseSeriesVisible(!mCandlestickRenderer.getBaseSeriesVisible());
+                boolean seriesVisible = mCandlestickRenderer.getBaseSeriesVisible();
+                mCandlestickRenderer.setBaseSeriesVisible(!seriesVisible);
+                mLineRenderer.setBaseShapesVisible(seriesVisible);
             }
         }
         catch (Exception e) {
