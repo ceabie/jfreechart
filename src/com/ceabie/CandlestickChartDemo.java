@@ -12,14 +12,12 @@ import org.jfree.chart.renderer.xy.CandlestickRenderer;
 import org.jfree.chart.renderer.xy.XYItemRenderer;
 import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.io.CSV;
 import org.jfree.data.time.Day;
 import org.jfree.data.time.TimePeriodAnchor;
 import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeries;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
-import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 import org.jfree.ui.RefineryUtilities;
 
@@ -28,16 +26,20 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowEvent;
-import java.io.FileReader;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 /**
  * Created by Administrator on 2016/5/9.
  */
-public class CandlestickChartDemo extends ApplicationFrame implements ActionListener {
+public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements ActionListener {
 
     private static final String ACTION_CMD_SWITCH_CAND = "switch-cand";
     private static final String ACTION_CMD_SWITCH_LOW = "switch-low";
+    public static final int COLUMN_HIGH = 1;
+    public static final int COLUMN_OPEN = 3;
+    public static final int COLUMN_CLOSE = 0;
+    public static final int COLUMN_LOW = 2;
 
     static {
         // set a theme using the new shadow generator feature available in
@@ -54,48 +56,101 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
     private JButton mLowButton;
 
 
-    private DataSet loadData() {
+    /**
+     * Process data data set.
+     *
+     * @return the data set
+     * @throws ParseException the parse exception
+     */
+    private DataSet processData() throws ParseException {
+        String dataFile = "000001.csv";
+        CategoryDataset categoryDataset = getCategoryDataset(dataFile);
+
+        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
         OHLCSeriesCollection dataset = new OHLCSeriesCollection();
         dataset.setXPosition(TimePeriodAnchor.START);
 
         TimeSeries highSeries = new TimeSeries("high");
         TimeSeries lowSeries = new TimeSeries("low");
+        TimeSeries highDiffSeries = new TimeSeries("highDiff");
+        TimeSeries lowDiffSeries = new TimeSeries("lowDiff");
 
-        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
-        CSV csv = new CSV();
-        try {
-            FileReader fileReader = new FileReader("000001.csv");
+        int rowCount = categoryDataset.getRowCount();
+        int upHigh = 0;
+        int downHigh = 0;
+        int stopHigh = 0;
 
-            CategoryDataset categoryDataset = csv.readCategoryDataset(fileReader);
+        int upLow = 0;
+        int downLow = 0;
+        int stopLow = 0;
 
-            int rowCount = categoryDataset.getRowCount();
-            for (int i = 0; i < rowCount; i++) {
-                Comparable rowKey = categoryDataset.getRowKey(i);
-                OHLCSeries s1 = new OHLCSeries(rowKey);
+        double startHigh = categoryDataset.getValue(rowCount - 1, COLUMN_HIGH).doubleValue();
+        double startLow = categoryDataset.getValue(rowCount - 1, COLUMN_LOW).doubleValue();
+        double lastHigh = startHigh;
+        double lastLow = startLow;
 
-                Day period = new Day(simpleDateFormat.parse(rowKey.toString()));
-                Number high = categoryDataset.getValue(i, 1);
-                Number open = categoryDataset.getValue(i, 3);
-                Number close = categoryDataset.getValue(i, 0);
-                Number low = categoryDataset.getValue(i, 2);
-                s1.add(period,
-                        open.doubleValue(),
-                        high.doubleValue(),
-                        low.doubleValue(),
-                        close.doubleValue());
+        for (int i=rowCount - 1; i>=0; i--) {
+            Comparable rowKey = categoryDataset.getRowKey(i);
+            OHLCSeries s1 = new OHLCSeries(rowKey);
 
-                highSeries.add(period, high);
-                lowSeries.add(period, low);
-                dataset.addSeries(s1);
+            Day period = new Day(simpleDateFormat.parse(rowKey.toString()));
+            Number high = categoryDataset.getValue(i, COLUMN_HIGH);
+            Number open = categoryDataset.getValue(i, COLUMN_OPEN);
+            Number close = categoryDataset.getValue(i, COLUMN_CLOSE);
+            Number low = categoryDataset.getValue(i, COLUMN_LOW);
+            double doubleHigh = high.doubleValue();
+            double doubleLow = low.doubleValue();
+
+            s1.add(period,
+                    open.doubleValue(),
+                    doubleHigh,
+                    doubleLow,
+                    close.doubleValue());
+            dataset.addSeries(s1);
+
+            highSeries.add(period, high);
+            lowSeries.add(period, low);
+            double diffHigh = doubleHigh - lastHigh;
+            if (diffHigh > 0) {
+                upHigh++;
+            } else if (diffHigh < 0) {
+                downHigh++;
+            } else {
+                stopHigh++;
             }
-            fileReader.close();
-        } catch (Exception e) {
-            e.printStackTrace();
+
+//            double diffLow = doubleLow - lastLow;
+//            if (diffLow > 0) {
+//                upLow++;
+//            } else if (diffLow < 0) {
+//                downLow++;
+//            } else {
+//                stopLow++;
+//            }
+
+            highDiffSeries.add(period, diffHigh + 50);
+//            lowDiffSeries.add(period, diffLow - 300);
+            lastHigh = doubleHigh;
+//            lastLow = doubleLow;
         }
+
+        float to = upHigh + downHigh;
+        System.out.println(String.format("upHigh: %d [%.3f]", upHigh, upHigh / to));
+        System.out.println(String.format("downHigh: %d [%.3f]", downHigh, downHigh / to));
+        System.out.println("stopHigh: " + stopHigh);
+        System.out.println("diff: " + (upHigh / to - downHigh / to));
+
+//        to = upLow + downLow;
+//        System.out.println(String.format("upLow: %d [%.3f]", upLow, upLow / to));
+//        System.out.println(String.format("downLow: %d [%.3f]", downLow, downLow / to));
+//        System.out.println("stopLow: " + stopLow);
+//        System.out.println("diff: " + (upLow / to - downLow / to));
 
         TimeSeriesCollection TdcDataset = new TimeSeriesCollection();
         TdcDataset.addSeries(highSeries);
         TdcDataset.addSeries(lowSeries);
+        TdcDataset.addSeries(highDiffSeries);
+        TdcDataset.addSeries(lowDiffSeries);
 
         DataSet dataSet = new DataSet();
         dataSet.dataset = dataset;
@@ -104,14 +159,20 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         return dataSet;
     }
 
+    /**
+     * Update data.
+     *
+     * @param dataSet the data set
+     */
     private void updateData(DataSet dataSet) {
         XYPlot plot = (XYPlot) mChart.getPlot();
+        CandlestickToolTipGenerator toolTipGenerator = CandlestickToolTipGenerator.getSeriesInstance();
 
         int candlestickIndex = 0;
         XYItemRenderer r = plot.getRenderer(candlestickIndex);
         if (r instanceof CandlestickRenderer) {
             mCandlestickRenderer = (CandlestickRenderer) r;
-            mCandlestickRenderer.setBaseToolTipGenerator(CandlestickToolTipGenerator.getSeriesInstance());
+            mCandlestickRenderer.setBaseToolTipGenerator(toolTipGenerator);
         }
 
         plot.setDataset(candlestickIndex, dataSet.dataset);
@@ -125,7 +186,11 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         mLineRenderer.setDrawSeriesLineAsPath(true);
         mLineRenderer.setSeriesPaint(0, Color.RED);
         mLineRenderer.setSeriesPaint(1, Color.GREEN);
+        mLineRenderer.setSeriesPaint(2, Color.BLUE);
+        mLineRenderer.setSeriesPaint(3, Color.BLUE);
         mLineRenderer.setBaseShapesVisible(false);
+        mLineRenderer.setDrawSeriesLineAsPath(false);
+        mLineRenderer.setBaseToolTipGenerator(toolTipGenerator);
 
         plot.setRenderer(index, mLineRenderer);
         plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
@@ -137,6 +202,11 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
         axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
     }
 
+    /**
+     * Create chart j free chart.
+     *
+     * @return the j free chart
+     */
     private JFreeChart createChart() {
         mChart = ChartFactory.createCandlestickChart(
                 "Legal & General Unit Trust Prices",  // title
@@ -164,7 +234,7 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
 //        plot.setDomainCrosshairLockedOnData(false);
 
         Task.callInBackground(() -> {
-            DataSet dataSet = loadData();
+            DataSet dataSet = processData();
             updateData(dataSet);
             return null;
         });
@@ -173,6 +243,9 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
 
     public JPanel createDemoPanel() {
         JFreeChart chart = createChart();
+        chart.setAntiAlias(true);
+        chart.getRenderingHints().put(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BICUBIC);
 
         ChartPanel panel = new ChartPanel(chart);
         panel.setMouseWheelEnabled(true);
@@ -258,7 +331,7 @@ public class CandlestickChartDemo extends ApplicationFrame implements ActionList
 
     private ChartPanel createChartPanel() {
         ChartPanel chartPanel = (ChartPanel) createDemoPanel();
-        chartPanel.setPreferredSize(new Dimension(800, 600));
+        chartPanel.setPreferredSize(new Dimension(1200, 800));
 //        chartPanel.setRangeZoomable(false);
         chartPanel.setPopupMenu(null);
 

@@ -44,6 +44,7 @@ package com.ceabie;
 
 import org.jfree.chart.labels.AbstractXYItemLabelGenerator;
 import org.jfree.chart.labels.XYToolTipGenerator;
+import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 import org.jfree.data.xy.XYDataset;
 import org.jfree.util.PublicCloneable;
@@ -61,7 +62,8 @@ public class CandlestickToolTipGenerator extends AbstractXYItemLabelGenerator
 
     private static final long serialVersionUID = -3564164459039540784L;
 
-    public static final String DEFAULT_TOOL_TIP_FORMAT = "{0}: [{1}, {2}]-({3}, {4})";
+    private static final String DEFAULT_TOOL_TIP_FORMAT = "{0}: [{1}, {2}]-({3}, {4})";
+    private static final String DEFAULT_SINGLE_TOOL_TIP_FORMAT = "{0}: {1}";
 
     public static CandlestickToolTipGenerator getSeriesInstance() {
         return new CandlestickToolTipGenerator(DEFAULT_TOOL_TIP_FORMAT,
@@ -87,6 +89,15 @@ public class CandlestickToolTipGenerator extends AbstractXYItemLabelGenerator
                         xDateFormat.format(new Date((long) x)),
                         d.getOpenValue(series, item), d.getCloseValue(series, item),
                         d.getHighValue(series, item), d.getLowValue(series, item));
+            }
+        } else if (dataset instanceof TimeSeriesCollection) {
+            TimeSeriesCollection d = (TimeSeriesCollection) dataset;
+            double x = dataset.getXValue(series, item);
+            DateFormat xDateFormat = getXDateFormat();
+            if (xDateFormat != null) {
+                return MessageFormat.format(DEFAULT_SINGLE_TOOL_TIP_FORMAT,
+                        xDateFormat.format(new Date((long) x)),
+                        d.getYValue(series, item));
             }
         }
 
