@@ -1,6 +1,7 @@
 package com.ceabie;
 
 import bolts.Task;
+import com.ceabie.util.FileUtil;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -8,9 +9,7 @@ import org.jfree.chart.StandardChartTheme;
 import org.jfree.chart.axis.DateAxis;
 import org.jfree.chart.plot.DatasetRenderingOrder;
 import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.CandlestickRenderer;
-import org.jfree.chart.renderer.xy.XYItemRenderer;
-import org.jfree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.jfree.chart.renderer.xy.*;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.time.Day;
 import org.jfree.data.time.TimePeriodAnchor;
@@ -18,6 +17,8 @@ import org.jfree.data.time.TimeSeries;
 import org.jfree.data.time.TimeSeriesCollection;
 import org.jfree.data.time.ohlc.OHLCSeries;
 import org.jfree.data.time.ohlc.OHLCSeriesCollection;
+import org.jfree.data.xy.XYDataset;
+import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RectangleInsets;
 import org.jfree.ui.RefineryUtilities;
 
@@ -25,14 +26,15 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.WindowEvent;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 /**
- * Created by Administrator on 2016/5/9.
+ * CandlestickChart.
+ *
+ * @author ceabie
  */
-public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements ActionListener {
+public class CandlestickChartDemo extends ApplicationFrame implements ActionListener {
 
     private static final String ACTION_CMD_SWITCH_CAND = "switch-cand";
     private static final String ACTION_CMD_SWITCH_LOW = "switch-low";
@@ -44,8 +46,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
     static {
         // set a theme using the new shadow generator feature available in
         // 1.0.14 - for backwards compatibility it is not enabled by default
-        ChartFactory.setChartTheme(new StandardChartTheme("JFree/Shadow",
-                true));
+        ChartFactory.setChartTheme(new StandardChartTheme("JFree/Shadow", true));
     }
 
     private JScrollBar mJScrollBar;
@@ -64,7 +65,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
      */
     private DataSet processData() throws ParseException {
         String dataFile = "000001.csv";
-        CategoryDataset categoryDataset = getCategoryDataset(dataFile);
+        CategoryDataset categoryDataset = FileUtil.getCategoryDataset(dataFile);
 
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy/MM/dd");
         OHLCSeriesCollection dataset = new OHLCSeriesCollection();
@@ -73,7 +74,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
         TimeSeries highSeries = new TimeSeries("high");
         TimeSeries lowSeries = new TimeSeries("low");
         TimeSeries highDiffSeries = new TimeSeries("highDiff");
-        TimeSeries lowDiffSeries = new TimeSeries("lowDiff");
+//        TimeSeries lowDiffSeries = new TimeSeries("lowDiff");
 
         int rowCount = categoryDataset.getRowCount();
         int upHigh = 0;
@@ -84,12 +85,13 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
         int downLow = 0;
         int stopLow = 0;
 
-        double startHigh = categoryDataset.getValue(rowCount - 1, COLUMN_HIGH).doubleValue();
-        double startLow = categoryDataset.getValue(rowCount - 1, COLUMN_LOW).doubleValue();
+        int lastIndex = rowCount - 1;
+        double startHigh = categoryDataset.getValue(lastIndex, COLUMN_HIGH).doubleValue();
+        double startLow = categoryDataset.getValue(lastIndex, COLUMN_LOW).doubleValue();
         double lastHigh = startHigh;
         double lastLow = startLow;
 
-        for (int i=rowCount - 1; i>=0; i--) {
+        for (int i = lastIndex; i >= 0; i--) {
             Comparable rowKey = categoryDataset.getRowKey(i);
             OHLCSeries s1 = new OHLCSeries(rowKey);
 
@@ -128,7 +130,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
 //                stopLow++;
 //            }
 
-            highDiffSeries.add(period, diffHigh + 50);
+            highDiffSeries.add(period, diffHigh + 30);
 //            lowDiffSeries.add(period, diffLow - 300);
             lastHigh = doubleHigh;
 //            lastLow = doubleLow;
@@ -147,14 +149,19 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
 //        System.out.println("diff: " + (upLow / to - downLow / to));
 
         TimeSeriesCollection TdcDataset = new TimeSeriesCollection();
+        TdcDataset.setXPosition(TimePeriodAnchor.START);
         TdcDataset.addSeries(highSeries);
         TdcDataset.addSeries(lowSeries);
-        TdcDataset.addSeries(highDiffSeries);
-        TdcDataset.addSeries(lowDiffSeries);
+
+        TimeSeriesCollection diffDataset = new TimeSeriesCollection();
+        diffDataset.addSeries(highDiffSeries);
+        diffDataset.setXPosition(TimePeriodAnchor.START);
+//        TdcDataset.addSeries(lowDiffSeries);
 
         DataSet dataSet = new DataSet();
         dataSet.dataset = dataset;
         dataSet.TdcDataset = TdcDataset;
+        dataSet.diffDataset = diffDataset;
 
         return dataSet;
     }
@@ -164,10 +171,16 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
      *
      * @param dataSet the data set
      */
-    private void updateData(DataSet dataSet) {
+    private void updateView(DataSet dataSet) {
         XYPlot plot = (XYPlot) mChart.getPlot();
+        plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
+        DateAxis axis = (DateAxis) plot.getDomainAxis();
+        axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
+
+        // tipTool
         CandlestickToolTipGenerator toolTipGenerator = CandlestickToolTipGenerator.getSeriesInstance();
 
+        // candlestick
         int candlestickIndex = 0;
         XYItemRenderer r = plot.getRenderer(candlestickIndex);
         if (r instanceof CandlestickRenderer) {
@@ -178,28 +191,46 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
         plot.setDataset(candlestickIndex, dataSet.dataset);
 //        plot.mapDatasetToRangeAxis(candlestickIndex, 0);
 
+        // anylsis
         int index = 1;
-
         mLineRenderer = new XYLineAndShapeRenderer(true, false);
         mLineRenderer.setBaseShapesVisible(false);
         mLineRenderer.setBaseShapesFilled(true);
         mLineRenderer.setDrawSeriesLineAsPath(true);
         mLineRenderer.setSeriesPaint(0, Color.RED);
         mLineRenderer.setSeriesPaint(1, Color.GREEN);
-        mLineRenderer.setSeriesPaint(2, Color.BLUE);
-        mLineRenderer.setSeriesPaint(3, Color.BLUE);
         mLineRenderer.setBaseShapesVisible(false);
         mLineRenderer.setDrawSeriesLineAsPath(false);
         mLineRenderer.setBaseToolTipGenerator(toolTipGenerator);
 
-        plot.setRenderer(index, mLineRenderer);
-        plot.setDatasetRenderingOrder(DatasetRenderingOrder.FORWARD);
-
-        plot.setDataset(index, dataSet.TdcDataset);
+        addToPlot(mChart, index, mLineRenderer, dataSet.TdcDataset);
 //        plot.mapDatasetToRangeAxis(index, 0);
 
-        DateAxis axis = (DateAxis) plot.getDomainAxis();
-        axis.setDateFormatOverride(new SimpleDateFormat("yyyy-MM-dd"));
+        // anylsis
+        final int diffIndex = 2;
+        XYBarRenderer barRenderer = new XYBarRenderer() {
+            @Override
+            public Paint getItemPaint(int row, int column) {
+                double yValue = getPlot().getDataset(diffIndex).getYValue(row, column);
+                if (yValue < 0) {
+                    return Color.RED;
+                } else {
+                    return Color.GREEN;
+                }
+            }
+        };
+        barRenderer.setBarPainter(new StandardXYBarPainter());
+        barRenderer.setDrawBarOutline(false);
+        barRenderer.setShadowVisible(false);
+        barRenderer.setDefaultShadowsVisible(false);
+
+        addToPlot(mChart, diffIndex, barRenderer, dataSet.diffDataset);
+    }
+
+    private void addToPlot(JFreeChart jFreeChart, int index, XYItemRenderer renderer, XYDataset dataSet) {
+        XYPlot plot = jFreeChart.getXYPlot();
+        plot.setRenderer(index, renderer);
+        plot.setDataset(index, dataSet);
     }
 
     /**
@@ -209,7 +240,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
      */
     private JFreeChart createChart() {
         mChart = ChartFactory.createCandlestickChart(
-                "Legal & General Unit Trust Prices",  // title
+                "Candlestick",  // title
                 "Date",             // x-axis label
                 "Price Per Unit",   // y-axis label
                 null,           // data
@@ -235,7 +266,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
 
         Task.callInBackground(() -> {
             DataSet dataSet = processData();
-            updateData(dataSet);
+            updateView(dataSet);
             return null;
         });
         return mChart;
@@ -305,8 +336,7 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
                     mLineRenderer.setSeriesLinesVisible(1, !visible);
                     break;
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -323,11 +353,11 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
     }
 
     /////////////////////////////// Main ////////////////////////////////////
-    @Override
-    public void windowClosed(WindowEvent event) {
-        super.windowClosed(event);
-        System.exit(0);
-    }
+//    @Override
+//    public void windowClosed(WindowEvent event) {
+//        super.windowClosed(event);
+//        System.exit(0);
+//    }
 
     private ChartPanel createChartPanel() {
         ChartPanel chartPanel = (ChartPanel) createDemoPanel();
@@ -340,6 +370,8 @@ public class CandlestickChartDemo extends com.ceabie.util.FileUtil implements Ac
 
     public CandlestickChartDemo(String title) {
         super(title);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
         Container contentPane = getContentPane();
         contentPane.setLayout(new BorderLayout());
         contentPane.add(createToolbar(), BorderLayout.SOUTH);

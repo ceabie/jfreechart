@@ -5,7 +5,7 @@ import java.io.*;
 /**
  * The type File util.
  *
- * @author chenxi
+ * @author ceabie
  */
 public class IOUtil {
     public static boolean saveObjectToFile(File file, Object object) {

@@ -9,4 +9,5 @@ import org.jfree.data.time.ohlc.OHLCSeriesCollection;
 public class DataSet {
     public OHLCSeriesCollection dataset;
     public TimeSeriesCollection TdcDataset;
+    public TimeSeriesCollection diffDataset;
 }

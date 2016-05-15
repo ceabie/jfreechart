@@ -42,9 +42,6 @@
 
 package org.jfree.chart.demo;
 
-import java.awt.Color;
-import java.awt.Dimension;
-
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -53,11 +50,14 @@ import org.jfree.chart.axis.NumberAxis;
 import org.jfree.chart.block.BlockBorder;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.chart.title.TextTitle;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.ui.ApplicationFrame;
 import org.jfree.ui.RefineryUtilities;
+
+import java.awt.*;
 
 /**
  * A simple demonstration application showing how to create a bar chart.
@@ -96,6 +96,7 @@ public class BarChartDemo1 extends ApplicationFrame {
      */
     private static CategoryDataset createDataset() {
         DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+
         dataset.addValue(7445, "JFreeSVG", "Warm-up");
         dataset.addValue(24448, "Batik", "Warm-up");
         dataset.addValue(4297, "JFreeSVG", "Test");
@@ -131,6 +132,8 @@ public class BarChartDemo1 extends ApplicationFrame {
         rangeAxis.setStandardTickUnits(NumberAxis.createIntegerTickUnits());
         BarRenderer renderer = (BarRenderer) plot.getRenderer();
         renderer.setDrawBarOutline(false);
+        renderer.setShadowVisible(false);
+        renderer.setBarPainter(new StandardBarPainter());
         chart.getLegend().setFrame(BlockBorder.NONE);
         return chart;
     }

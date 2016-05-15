@@ -2,20 +2,18 @@ package com.ceabie.util;
 
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.io.CSV;
-import org.jfree.ui.ApplicationFrame;
 
 import java.io.File;
 import java.io.FileReader;
 
 /**
- * Created by Administrator on 2016/5/15.
+ * The type File util.
+ *
+ * @author ceabie
  */
-public class FileUtil extends ApplicationFrame {
-    public FileUtil(String title) {
-        super(title);
-    }
+public class FileUtil {
 
-    protected static CategoryDataset getCategoryDataset(String dataFile) {
+    public static CategoryDataset getCategoryDataset(String dataFile) {
         CategoryDataset categoryDataset = null;
 
         File serFile = new File(dataFile + ".ser");
